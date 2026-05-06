@@ -135,17 +135,18 @@ stts = [("Total", len(df), "#2563eb", c1), ("Kunjungan", len(df[df["Kategori"]==
 for l, v, c, col in stts:
     with col: st.markdown(f'<div class="kpi-card"><div class="kpi-label">{l}</div><div class="kpi-value" style="color:{c}">{v}</div><div class="kpi-sub">Kegiatan</div></div>', unsafe_allow_html=True)
 
-# ── NEW VISUALIZATIONS ────────────────────────────────────────
+# ── VISUALIZATIONS ────────────────────────────────────────────
 st.markdown("---")
-col_chart1, col_chart2 = st.columns([1.5, 1])
+col_chart1, col_chart2 = st.columns([1, 1])
 
 with col_chart1:
-    st.markdown("#### 📈 Tren Intensitas Kegiatan")
-    df_trend = df.groupby(["MO", "Bulan", "Tanggal"]).size().reset_index(name="Jumlah")
-    df_trend["Tgl"] = df_trend["Tanggal"].astype(str) + " " + df_trend["Bulan"]
-    fig_trend = px.line(df_trend, x="Tgl", y="Jumlah", markers=True, color_discrete_sequence=["#2563eb"])
-    fig_trend.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), xaxis_title="", yaxis_title="Jumlah Agenda", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.markdown("#### 📊 Distribusi per Kategori")
+    df_cat = df["Kategori"].value_counts().reset_index()
+    df_cat.columns = ["Kategori", "Jumlah"]
+    fig_cat = px.bar(df_cat, x="Jumlah", y="Kategori", orientation="h", color="Jumlah", color_continuous_scale="Blues", text="Jumlah")
+    fig_cat.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=40), showlegend=False, xaxis_title="", yaxis_title="", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    fig_cat.update_traces(textposition="outside")
+    st.plotly_chart(fig_cat, use_container_width=True)
 
 with col_chart2:
     st.markdown("#### 📅 Beban Kerja per Hari")
