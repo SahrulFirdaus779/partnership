@@ -101,23 +101,22 @@ if not all_df.empty:
     sb_q = st.sidebar.text_input("🔍 Cari Nama Mitra", "", key="txt_search").upper()
 else: sb_k, sb_s, sb_q, p_high, p_low = [], [], "", False, False
 
+st.sidebar.markdown("---")
+if st.sidebar.button("🔄 Segarkan Data", key="btn_refresh"): st.rerun()
+
 # ── RENDERING ENGINE ─────────────────────────────────────────
 def render_bi_view(df, title, unique_id):
     st.markdown(f'<div class="hero-banner"><div class="hero-title">Wawasan Strategis: <span>{title}</span></div></div>', unsafe_allow_html=True)
     if df.empty: return st.warning(f"Data {title} tidak ditemukan.")
     
-    # Filter Data
     df_f = df[(df["Kecamatan"].isin(sb_k)) & (df["Status"].isin(sb_s))]
     if sb_q: df_f = df_f[df_f["Calon Mitra"].str.upper().str.contains(sb_q, na=False)]
     if p_high: df_f = df_f[df_f["Target_KPI"] > 10000000]
     if p_low: df_f = df_f[df_f["Notes & History"].isna() | (df_f["Notes & History"] == "")]
     
-    # Sort
     df_f = df_f.sort_values("Target_KPI", ascending=False)
-    
     t, r, e = df_f["Target_KPI"].sum(), df_f["Real_KPI"].sum(), df_f["Expected_Revenue"].sum()
     
-    # KPI Section
     c1, c2, c3 = st.columns(3)
     with c1: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Volume Pipeline</div><div class="kpi-value">{len(df_f)}</div></div>', unsafe_allow_html=True)
     with c2: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Estimasi BI</div><div class="kpi-value" style="color:#2563eb">Rp {e:,.0f}</div></div>', unsafe_allow_html=True)
@@ -132,16 +131,15 @@ def render_bi_view(df, title, unique_id):
             cts = df_f["Status"].value_counts().reset_index()
             if not cts.empty:
                 fig_f = go.Figure(go.Funnel(y=cts["Status"], x=cts["count"], textinfo="value+percent initial"))
-                # Use unique title/id to avoid DuplicateElementId in some Streamlit versions
-                fig_f.update_layout(height=300, margin=dict(t=30,b=0), title=f"Corong - {unique_id}")
-                st.plotly_chart(fig_f, use_container_width=True, key=f"funnel_{unique_id}")
+                fig_f.update_layout(height=300, margin=dict(t=30,b=0), title=f"Corong Konversi - {title}")
+                st.plotly_chart(fig_f, use_container_width=True)
             else: st.info("Tidak ada data status.")
         with sub2:
             dt = df_f[df_f["Target_KPI"] > 0]
             if not dt.empty:
-                fig_t = px.treemap(dt, path=["Type", "Status"], values="Target_KPI", color="Target_KPI", color_continuous_scale="Blues", title=f"Segmentasi - {unique_id}")
-                fig_t.update_layout(height=300, margin=dict(t=30,b=0))
-                st.plotly_chart(fig_t, use_container_width=True, key=f"treemap_{unique_id}")
+                fig_t = px.treemap(dt, path=["Type", "Status"], values="Target_KPI", color="Target_KPI", color_continuous_scale="Blues")
+                fig_t.update_layout(height=300, margin=dict(t=30,b=0), title=f"Segmentasi Nilai - {title}")
+                st.plotly_chart(fig_t, use_container_width=True)
             else: st.info("Tidak ada nilai target.")
             
     with col_r:
@@ -150,7 +148,9 @@ def render_bi_view(df, title, unique_id):
         if sel_p != "-- Pilih Mitra --":
             pd_x = df_f[df_f["Calon Mitra"] == sel_p].iloc[0]
             st.markdown(f'<div class="partner-card"><div class="partner-name">{pd_x["Calon Mitra"]}</div><div class="partner-detail"><b>Status:</b> {pd_x["Status"]}</div><div class="partner-detail"><b>PIC:</b> {pd_x["PIC"]}</div><hr><div class="partner-detail"><b>Catatan:</b><br>{pd_x["Notes & History"] if pd.notna(pd_x["Notes & History"]) else "-"}</div></div>', unsafe_allow_html=True)
-            if pd.notna(pd_x.get("WhatsApp")) and pd_x["WhatsApp"] != "": st.link_button("💬 Hubungi via WA", pd_x["WhatsApp"], key=f"wa_{unique_id}")
+            if pd.notna(pd_x.get("WhatsApp")) and pd_x["WhatsApp"] != "": 
+                st.link_button(f"💬 Hubungi via WA", pd_x["WhatsApp"]) # REMOVED INVALID 'key'
+        else: st.info("Pilih salah satu mitra di atas.")
 
     st.markdown("#### 📋 Data Rincian (Urut Berdasarkan Nilai)")
     color_fn = lambda v: "background-color: #dcfce7; color: #166534; font-weight: bold;" if "WON" in str(v).upper() else ""
@@ -184,11 +184,11 @@ with tabs[0]:
         with col_l:
             st.markdown("#### 🗺️ Kekuatan Wilayah")
             reg_d = df_f.groupby("Kecamatan")["Real_KPI"].sum().sort_values(ascending=False).head(10).reset_index()
-            st.plotly_chart(px.bar(reg_d, x="Real_KPI", y="Kecamatan", orientation="h", color="Real_KPI", color_continuous_scale="Blues", title="Top 10 Wilayah").update_layout(yaxis={'categoryorder':'total ascending'}), use_container_width=True, key="exec_reg_bar")
+            st.plotly_chart(px.bar(reg_d, x="Real_KPI", y="Kecamatan", orientation="h", color="Real_KPI", color_continuous_scale="Blues", title="Analisis Wilayah Global").update_layout(yaxis={'categoryorder':'total ascending'}), use_container_width=True)
         with col_r:
             st.markdown("#### 💎 Mitra Strategis")
             top_p = df_f.sort_values("Target_KPI", ascending=False).head(8)
-            st.plotly_chart(px.bar(top_p, x="Target_KPI", y="Calon Mitra", color="Status", orientation="h", title="Top 8 Mitra").update_layout(yaxis={'categoryorder':'total ascending'}), use_container_width=True, key="exec_top_bar")
+            st.plotly_chart(px.bar(top_p, x="Target_KPI", y="Calon Mitra", color="Status", orientation="h", title="Mitra Nilai Tertinggi Global").update_layout(yaxis={'categoryorder':'total ascending'}), use_container_width=True)
 
 for i, t_obj in enumerate(tabs[1:]):
     with t_obj:
