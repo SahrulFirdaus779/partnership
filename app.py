@@ -5,250 +5,217 @@ import plotly.graph_objects as go
 import os
 import re
 import html
+import textwrap
+from datetime import datetime
 
 st.set_page_config(
-    page_title="Agenda Partnership Qurban 1447 H",
+    page_title="Dashboard Partnership Zakat Sukses",
     page_icon="📅",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── CUSTOM CSS ────────────────────────────────────────────────
-st.markdown("""
+# ── PREMIUM CSS ───────────────────────────────────────────────
+st.markdown(textwrap.dedent("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
+
 [data-testid="stAppViewContainer"] { background-color: #fcfcfd; }
 [data-testid="stSidebar"] { background-color: #ffffff !important; border-right: 1px solid #f1f5f9; }
 
-/* Header Banner */
-.header-banner {
-    background: #ffffff;
-    border: 1px solid #f1f5f9;
-    border-radius: 16px;
-    padding: 30px;
-    margin-bottom: 24px;
-    text-align: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-}
-.header-title { font-size: 28px; font-weight: 800; color: #1e293b; }
-.header-title span { color: #2563eb; }
-.header-sub { font-size: 14px; color: #64748b; margin-top: 4px; }
+.hero-banner { background: #ffffff; border: 1px solid #f1f5f9; border-radius: 20px; padding: 24px; margin-bottom: 20px; text-align: center; }
+.hero-title { font-size: 24px; font-weight: 800; color: #1e293b; margin: 0; }
+.hero-title span { color: #2563eb; }
 
-/* KPI Cards */
-.kpi-card { background: #ffffff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
-.kpi-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
-.kpi-value { font-size: 32px; font-weight: 800; color: #0f172a; line-height: 1; }
-.kpi-sub { font-size: 11px; color: #94a3b8; }
+.kpi-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+.kpi-card { background: #ffffff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 20px; flex: 1; min-width: 160px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+.kpi-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+.kpi-value { font-size: 24px; font-weight: 800; color: #0f172a; line-height: 1; }
 
-/* Calendar Header */
-.calendar-header-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px; text-align: center; }
-.calendar-day-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
-
-/* Calendar Grid & Day Box */
-.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
-.day-box { 
-    background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; 
-    min-height: 130px; padding: 10px; transition: all 0.2s ease;
-    position: relative; cursor: default;
-}
-.day-box:hover { background: #ffffff; border-color: #cbd5e1; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-
-/* Tooltip Styling */
-.tooltip-content {
-    visibility: hidden;
-    width: 240px;
-    background-color: #1e293b;
-    color: #ffffff;
-    text-align: left;
-    border-radius: 8px;
-    padding: 14px;
-    position: absolute;
-    z-index: 999;
-    bottom: 105%;
-    left: 50%;
-    margin-left: -120px;
-    opacity: 0;
-    transition: opacity 0.3s, visibility 0.3s;
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-    font-size: 11px;
-    pointer-events: none;
-}
-.day-box:hover .tooltip-content {
-    visibility: visible;
-    opacity: 1;
-}
-
-.day-num { font-size: 15px; font-weight: 800; color: #cbd5e1; margin-bottom: 6px; }
+/* Calendar & Table Styling */
+.calendar-container { background: #ffffff; border: 1px solid #f1f5f9; border-radius: 20px; padding: 24px; margin-bottom: 24px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+.day-box { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; min-height: 120px; padding: 12px; position: relative; }
+.day-box:hover { background: #ffffff; border-color: #cbd5e1; }
+.day-num { font-size: 14px; font-weight: 800; color: #e2e8f0; margin-bottom: 8px; }
 .day-num.active { color: #1e293b; }
-.dot-container { display: flex; gap: 3px; margin-bottom: 6px; flex-wrap: wrap; }
-.dot { width: 7px; height: 7px; border-radius: 50%; }
-.event-text { font-size: 10px; font-weight: 600; color: #475569; line-height: 1.3; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tt-box { visibility: hidden; width: 240px; background: #1e293b; color: #fff; border-radius: 8px; padding: 12px; position: absolute; z-index: 999; bottom: 105%; left: 50%; margin-left: -120px; opacity: 0; transition: all 0.3s ease; font-size: 11px; pointer-events: none; }
+.day-box:hover .tt-box { visibility: visible; opacity: 1; }
 
 /* Category Colors */
-.cat-kunjungan { background: #3b82f6; }
+.cat-kunjungan { background: #2dd4bf; }
 .cat-rapat { background: #a855f7; }
-.cat-survey { background: #f97316; }
-.cat-canvasing { background: #10b981; }
-.cat-promo { background: #facc15; }
-.cat-safari { background: #ec4899; }
-.cat-raya { background: #ef4444; }
+.cat-survey { background: #84cc16; }
+.cat-canvasing { background: #d97706; }
+.cat-promo { background: #f43f5e; }
+.cat-safari { background: #3b82f6; }
+.cat-raya { background: #9f1239; }
+.cat-pelatihan { background: #fbbf24; }
 .cat-default { background: #94a3b8; }
-
-.legend-box { display: flex; gap: 12px; flex-wrap: wrap; padding: 12px; background: #ffffff; border: 1px solid #f1f5f9; border-radius: 12px; margin-bottom: 20px; }
-.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: #64748b; }
+.dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 </style>
-""", unsafe_allow_html=True)
+"""), unsafe_allow_html=True)
 
-# ── DATA PROCESSING ──────────────────────────────────────────
+# ── AGENDA LOGIC ─────────────────────────────────────────────
 def categorize(text):
-    text = text.lower()
-    if any(k in text for k in ["kunjungan", "silaturahmi", "sdit", "sdn", "mit ", "sekolah"]): return "Kunjungan"
-    if any(k in text for k in ["rapat", "meeting", "olah data", "fiksasi"]): return "Rapat"
-    if "canvasing" in text: return "Canvasing"
-    if any(k in text for k in ["survey", "kandang", "hewan"]): return "Survey"
-    if any(k in text for k in ["promo", "early bird", "launching", "flash sale", "harga"]): return "Promo"
-    if "safari dongeng" in text: return "Safari"
-    if any(k in text for k in ["idul adha", "tasyrik"]): return "Raya"
+    text = text.lower().strip()
+    if any(k in text for k in ["pelatihan", "pemotongan"]): return "Pelatihan Pemotongan"
+    if any(k in text for k in ["canvasing", "canvassing", "kanvasing", "cfd"]): return "Canvasing Partnership"
+    if any(k in text for k in ["kunjungan", "silaturahmi", "sdit", "sdn", "mit ", "sekolah", "masjid"]): return "Silaturahmi Sekolah"
+    if any(k in text for k in ["safari", "dongeng"]): return "Safari Dongeng Qurban"
+    if any(k in text for k in ["promo", "early bird", "flash sale"]): return "Promo Early Bird"
+    if any(k in text for k in ["rapat", "meeting", "olah data", "fiksasi", "bpk", "management", "persiapan", "pembahasan"]): return "Rapat / Meeting"
+    if any(k in text for k in ["survey", "kandang", "vendor"]): return "Survei Vendor"
+    if any(k in text for k in ["idul adha", "tasyrik"]): return "Hari Raya"
     return "Lainnya"
 
 def get_cat_class(cat):
-    m = {"Kunjungan":"cat-kunjungan","Rapat":"cat-rapat","Survey":"cat-survey","Canvasing":"cat-canvasing","Promo":"cat-promo","Safari":"cat-safari","Raya":"cat-raya"}
+    m = {"Canvasing Partnership":"cat-canvasing", "Silaturahmi Sekolah":"cat-kunjungan", "Safari Dongeng Qurban":"cat-safari", "Promo Early Bird":"cat-promo", "Rapat / Meeting":"cat-rapat", "Survei Vendor":"cat-survey", "Pelatihan Pemotongan":"cat-pelatihan", "Hari Raya":"cat-raya"}
     return m.get(cat, "cat-default")
 
 @st.cache_data
-def load_data():
-    fp = "agenda partnership.csv"
+def load_agenda_data():
+    fp = "daftar rincian agenda.csv"
     if not os.path.exists(fp): return pd.DataFrame(), []
     try:
-        content = ""
-        for enc in ['utf-8-sig', 'utf-8', 'latin-1']:
+        df = pd.read_csv(fp)
+        if df.columns[0].startswith('Unnamed') or df.columns[0] == '': df = df.iloc[:, 1:]
+        df["Kategori"] = df["Agenda"].apply(categorize)
+        df["Bulan"] = df["FullDate"].apply(lambda x: x.split(' ')[1])
+        df["Tanggal"] = df["FullDate"].apply(lambda x: int(x.split(' ')[0]))
+        weeks = []
+        for m_name, start_pad in [("April", 1), ("Mei", 3)]:
+            days_in_month = 30 if m_name == "April" else 31
+            curr_week = [{"day": "", "month": m_name, "events": []}] * start_pad
+            for d in range(1, days_in_month + 1):
+                evs_df = df[(df["Bulan"] == m_name) & (df["Tanggal"] == d)]
+                evs = [{"text": html.escape(row["Agenda"]), "cat": row["Kategori"]} for _, row in evs_df.iterrows()]
+                curr_week.append({"day": d, "month": m_name, "events": evs})
+                if len(curr_week) == 7:
+                    weeks.append(curr_week)
+                    curr_week = []
+            if curr_week:
+                curr_week += [{"day": "", "month": m_name, "events": []}] * (7 - len(curr_week))
+                weeks.append(curr_week)
+        return df, weeks
+    except: return pd.DataFrame(), []
+
+# ── PIPELINE LOGIC ───────────────────────────────────────────
+def clean_money(val):
+    if pd.isna(val) or val == "": return 0
+    s = str(val).replace("Rp", "").replace(".", "").replace(",", "").strip()
+    try: return float(re.sub(r'[^0-9]', '', s))
+    except: return 0
+
+@st.cache_data
+def load_pipeline_data():
+    files = [
+        "00. Pipeline Idul Adha 1447H.xlsx - Master.csv",
+        "00. Pipeline Idul Adha 1447H.xlsx - Idul Adha.csv",
+        "00. Pipeline Idul Adha 1447H.xlsx - Copy of Umum.csv"
+    ]
+    all_dfs = []
+    for f in files:
+        if os.path.exists(f):
             try:
-                with open(fp, 'r', encoding=enc) as f: content = f.read()
-                break
+                # Find the header row (usually contains 'Calon Mitra')
+                temp_df = pd.read_csv(f, nrows=10, header=None)
+                header_idx = 0
+                for idx, row in temp_df.iterrows():
+                    if "Calon Mitra" in str(row.values):
+                        header_idx = idx
+                        break
+                df = pd.read_csv(f, skiprows=header_idx)
+                # Cleanup empty columns/rows
+                df = df.dropna(subset=["Calon Mitra"])
+                df["Source"] = f.split(" - ")[-1].replace(".csv", "")
+                all_dfs.append(df)
             except: continue
-        if not content: return pd.DataFrame(), []
-        lines = content.splitlines()
-        data, weeks = [], []
-        curr_m, switched = "April", False
-        days_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
-        for i in range(len(lines)):
-            line = lines[i].strip()
-            if not line: continue
-            parts = line.split(';')
-            if len(parts) >= 2 and parts[1].strip() == 'Kegiatan':
-                dates = parts[2:9]
-                if i + 1 < len(lines):
-                    ap = lines[i+1].strip().split(';')
-                    if len(ap) >= 2 and ap[1].strip() == 'Agenda Qurban 1447 H':
-                        agendas, week_d = ap[2:9], []
-                        for idx, d_str in enumerate(dates):
-                            ds = d_str.strip()
-                            if ds and ds.isdigit():
-                                day = int(ds)
-                                if not switched and day == 1 and i > 15: curr_m, switched = "Mei", True
-                                txt = agendas[idx].strip() if idx < len(agendas) else ""
-                                evs = []
-                                if txt:
-                                    items = re.split(r' - | \| | \n ', txt)
-                                    for it in items:
-                                        if it.strip():
-                                            c = categorize(it.strip())
-                                            evs.append({"text": html.escape(it.strip()), "cat": c})
-                                            data.append({"Tanggal": day, "Bulan": curr_m, "FullDate": f"{day} {curr_m} 2025", "Agenda": it.strip(), "Kategori": c, "Hari": days_names[idx], "MO": 4 if curr_m=="April" else 5})
-                                week_d.append({"day": day, "month": curr_m, "events": evs})
-                            else: week_d.append({"day": "", "month": "", "events": []})
-                        weeks.append(week_d)
-        return pd.DataFrame(data), weeks
-    except Exception as e:
-        st.error(f"Error: {e}")
-        return pd.DataFrame(), []
+    
+    if not all_dfs: return pd.DataFrame()
+    full_df = pd.concat(all_dfs, ignore_index=True)
+    
+    # Financial cleaning
+    # Some files use ' Target' or 'Target '
+    target_col = [c for c in full_df.columns if "Target" in str(c)][0]
+    real_col = [c for c in full_df.columns if "Realisasi" in str(c)][0]
+    full_df["Target_Clean"] = full_df[target_col].apply(clean_money)
+    full_df["Realisasi_Clean"] = full_df[real_col].apply(clean_money)
+    
+    # Status normalization
+    full_df["Status"] = full_df["Status"].fillna("Unknown").str.replace("A", " ").str.strip()
+    return full_df
 
-df_raw, all_weeks = load_data()
+# ── MAIN NAVIGATION ──────────────────────────────────────────
+tab_agenda, tab_pipeline = st.tabs(["🗓️ Agenda Terverifikasi", "📊 Pipeline Partnership"])
 
-# ── HEADER BANNERR ───────────────────────────────────────────
-st.markdown("""
-<div class="header-banner">
-    <div class="header-title">Agenda <span>Partnership</span></div>
-    <div class="header-sub">Monitoring Kegiatan Operasional Qurban 1447 H · Zakat Sukses</div>
-</div>
-""", unsafe_allow_html=True)
+# ── TAB 1: AGENDA ────────────────────────────────────────────
+with tab_agenda:
+    df_ag, weeks_ag = load_agenda_data()
+    if not df_ag.empty:
+        st.markdown('<div class="hero-banner"><div class="hero-title">Kalender <span>Agenda</span> Terpadu</div></div>', unsafe_allow_html=True)
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Total Hari</div><div class="kpi-value">{df_ag["FullDate"].nunique()}</div></div>', unsafe_allow_html=True)
+        with c2: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Mitra Sekolah</div><div class="kpi-value">{len(df_ag[df_ag["Kategori"]=="Silaturahmi Sekolah"])}</div></div>', unsafe_allow_html=True)
+        with c3: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Safari Dongeng</div><div class="kpi-value">{len(df_ag[df_ag["Kategori"]=="Safari Dongeng Qurban"])}</div></div>', unsafe_allow_html=True)
+        with c4: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Canvasing</div><div class="kpi-value">{len(df_ag[df_ag["Kategori"]=="Canvasing Partnership"])}</div></div>', unsafe_allow_html=True)
+        
+        m_sel = st.selectbox("Bulan Agenda", ["Semua", "April", "Mei"])
+        st.markdown('<div class="calendar-container">', unsafe_allow_html=True)
+        for m in (["April", "Mei"] if m_sel == "Semua" else [m_sel]):
+            st.markdown(f"#### 📅 {m} 2025")
+            hdr = '<div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:10px;font-size:11px;font-weight:700;color:#94a3b8">'
+            for d in ["SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN"]: hdr += f'<div>{d}</div>'
+            st.markdown(hdr + '</div>', unsafe_allow_html=True)
+            grid = '<div class="calendar-grid">'
+            for week in weeks_ag:
+                if any(d["month"] == m for d in week):
+                    for day in week:
+                        if day["month"] == m and day["day"] != "":
+                            dots = "".join([f'<div class="dot {get_cat_class(e["cat"])}"></div>' for e in day["events"]])
+                            tt = f"<b>{day['day']} {day['month']}</b><hr>" + "".join([f"• {e['text']}<br>" for e in day["events"]])
+                            grid += f'<div class="day-box"><div class="day-num active">{day["day"]}</div><div>{dots}</div><div class="tt-box">{tt}</div></div>'
+                        else: grid += '<div class="day-box" style="opacity:0.1"></div>'
+            st.markdown(grid + '</div><br>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    else: st.warning("File 'daftar rincian agenda.csv' tidak ditemukan.")
 
-# ── SIDEBAR ───────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### 🐄 Filter Dashboard")
-    month_sel = st.selectbox("Pilih Bulan", ["Semua", "April", "Mei"])
-    cs = sorted(df_raw["Kategori"].unique())
-    cat_sel = st.multiselect("Filter Kategori", cs, default=cs)
-    st.markdown("---")
-    if not df_raw.empty:
-        st.download_button("📥 Download CSV", data=df_raw.to_csv(index=False), file_name="agenda_partnership.csv", mime="text/csv")
-
-# ── FILTERING ─────────────────────────────────────────────────
-df = df_raw.copy()
-if month_sel != "Semua": df = df[df["Bulan"] == month_sel]
-if cat_sel: df = df[df["Kategori"].isin(cat_sel)]
-
-# ── KPI SECTION ───────────────────────────────────────────────
-c1, c2, c3, c4, c5 = st.columns(5)
-stts = [("Total", len(df), "#2563eb", c1), ("Kunjungan", len(df[df["Kategori"]=="Kunjungan"]), "#3b82f6", c2), ("Canvasing", len(df[df["Kategori"]=="Canvasing"]), "#10b981", c3), ("Promo", len(df[df["Kategori"]=="Promo"]), "#eab308", c4), ("Rapat", len(df[df["Kategori"]=="Rapat"]), "#a855f7", c5)]
-for l, v, c, col in stts:
-    with col: st.markdown(f'<div class="kpi-card"><div class="kpi-label">{l}</div><div class="kpi-value" style="color:{c}">{v}</div><div class="kpi-sub">Kegiatan</div></div>', unsafe_allow_html=True)
-
-# ── CHARTS ────────────────────────────────────────────────────
-st.markdown("---")
-col_chart1, col_chart2 = st.columns([1, 1])
-with col_chart1:
-    st.markdown("#### 📊 Distribusi per Kategori")
-    df_cat = df["Kategori"].value_counts().reset_index()
-    df_cat.columns = ["Kategori", "Jumlah"]
-    fig_cat = px.bar(df_cat, x="Jumlah", y="Kategori", orientation="h", color="Jumlah", color_continuous_scale="Blues", text="Jumlah")
-    fig_cat.update_layout(height=280, margin=dict(t=10, b=10, l=10, r=40), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-    st.plotly_chart(fig_cat, use_container_width=True)
-with col_chart2:
-    st.markdown("#### 📅 Beban Kerja per Hari")
-    df_day = df["Hari"].value_counts().reindex(["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]).reset_index()
-    df_day.columns = ["Hari", "Jumlah"]
-    fig_day = px.bar(df_day, x="Hari", y="Jumlah", color="Jumlah", color_continuous_scale="Blues")
-    fig_day.update_layout(height=280, margin=dict(t=10, b=10, l=10, r=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-    st.plotly_chart(fig_day, use_container_width=True)
-
-# ── CALENDAR ──────────────────────────────────────────────────
-st.markdown("---")
-st.markdown("### 🗓️ Kalender Visual")
-leg = '<div class="legend-box">'
-for cat in ["Kunjungan", "Rapat", "Survey", "Canvasing", "Promo", "Safari", "Raya"]:
-    leg += f'<div class="legend-item"><div class="dot {get_cat_class(cat)}"></div>{cat}</div>'
-st.markdown(leg + '</div>', unsafe_allow_html=True)
-
-for m in (["April", "Mei"] if month_sel == "Semua" else [month_sel]):
-    st.markdown(f"#### 📅 {m} 2025")
-    hdr = '<div class="calendar-header-row">'
-    for d in ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]: hdr += f'<div class="calendar-day-label">{d}</div>'
-    st.markdown(hdr + '</div>', unsafe_allow_html=True)
-    grid = '<div class="calendar-grid">'
-    for week in all_weeks:
-        if any(d["month"] == m for d in week):
-            for day in week:
-                if day["month"] == m and day["day"] != "":
-                    evs = [e for e in day["events"] if e["cat"] in cat_sel]
-                    dots = "".join([f'<div class="dot {get_cat_class(e["cat"])}"></div>' for e in evs])
-                    txts = "".join([f'<div class="event-text">{e["text"]}</div>' for e in evs[:2]])
-                    if len(evs)>2: txts += f'<div style="font-size:9px;color:#94a3b8">+{len(evs)-2} lagi</div>'
-                    tt_content = f"<b>{day['day']} {day['month']} 2025</b><br><hr style='margin:8px 0; border-top:1px solid rgba(255,255,255,0.2)'>"
-                    for e in evs: tt_content += f"• {e['text']}<br>"
-                    grid += f'<div class="day-box"><div class="day-num active">{day["day"]}</div><div class="dot-container">{dots}</div>{txts}<div class="tooltip-content">{tt_content}</div></div>'
-                else: grid += '<div class="day-box" style="opacity:0.1"></div>'
-    st.markdown(grid + '</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-# ── TABLE ─────────────────────────────────────────────────────
-st.markdown("---")
-st.markdown("### 📋 Daftar Lengkap Agenda")
-sq = st.text_input("Cari cepat...", placeholder="Lokasi atau kegiatan...")
-dfv = df[["FullDate", "Kategori", "Agenda"]].copy()
-if sq: dfv = dfv[dfv.apply(lambda r: sq.lower() in str(r).lower(), axis=1)]
-st.dataframe(dfv, use_container_width=True, height=300)
+# ── TAB 2: PIPELINE ──────────────────────────────────────────
+with tab_pipeline:
+    df_pip = load_pipeline_data()
+    if not df_pip.empty:
+        st.markdown('<div class="hero-banner"><div class="hero-title">Monitoring <span>Pipeline</span> Partnership</div></div>', unsafe_allow_html=True)
+        
+        # Dashboard Filter
+        col_f1, col_f2 = st.columns(2)
+        with col_f1: source_sel = st.multiselect("Sumber Data", df_pip["Source"].unique(), default=df_pip["Source"].unique())
+        with col_f2: status_sel = st.multiselect("Status Filter", df_pip["Status"].unique(), default=df_pip["Status"].unique())
+        
+        dfp = df_pip[(df_pip["Source"].isin(source_sel)) & (df_pip["Status"].isin(status_sel))]
+        
+        # Financial Cards
+        c1, c2, c3 = st.columns(3)
+        with c1: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Total Calon Mitra</div><div class="kpi-value">{len(dfp)}</div></div>', unsafe_allow_html=True)
+        with c2: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Total Target</div><div class="kpi-value">Rp {dfp["Target_Clean"].sum():,.0f}</div></div>', unsafe_allow_html=True)
+        with c3: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Total Realisasi</div><div class="kpi-value" style="color:#10b981">Rp {dfp["Realisasi_Clean"].sum():,.0f}</div></div>', unsafe_allow_html=True)
+        
+        st.markdown("---")
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
+            st.markdown("#### 🔄 Funnel Status")
+            fig_funnel = px.bar(dfp["Status"].value_counts().reset_index(), x="count", y="Status", orientation="h", color="count", color_continuous_scale="Blues")
+            fig_funnel.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), showlegend=False, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig_funnel, use_container_width=True)
+        with col_c2:
+            st.markdown("#### 📍 Sebaran Wilayah (Kecamatan)")
+            fig_loc = px.bar(dfp["Kecamatan"].value_counts().head(10).reset_index(), x="count", y="Kecamatan", orientation="h", color="count", color_continuous_scale="Purples")
+            fig_loc.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), showlegend=False, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig_loc, use_container_width=True)
+        
+        st.markdown("#### 📋 Database Pipeline")
+        st.dataframe(dfp[["Calon Mitra", "Kecamatan", "Type", "Status", "Target_Clean", "Realisasi_Clean", "PJ Handling"]], use_container_width=True, height=400)
+    else: st.warning("Data Pipeline tidak ditemukan atau format tidak sesuai.")
 
 # Footer
-st.markdown('<div style="text-align:center;margin-top:60px;padding:40px;color:#94a3b8;border-top:1px solid #f1f5f9;font-size:12px;">Agenda Partnership Qurban 1447 H · Zakat Sukses</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;margin-top:60px;padding:40px;color:#94a3b8;border-top:1px solid #f1f5f9;font-size:12px;">Dashboard Partnership Qurban 1447 H · Terpadu</div>', unsafe_allow_html=True)
