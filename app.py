@@ -7,7 +7,7 @@ import re
 import html
 
 st.set_page_config(
-    page_title="Dashboard Agenda Qurban 1447 H",
+    page_title="Agenda Partnership Qurban 1447 H",
     page_icon="📅",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -20,20 +20,72 @@ st.markdown("""
 html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
 [data-testid="stAppViewContainer"] { background-color: #fcfcfd; }
 [data-testid="stSidebar"] { background-color: #ffffff !important; border-right: 1px solid #f1f5f9; }
+
+/* Header Banner */
+.header-banner {
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 16px;
+    padding: 30px;
+    margin-bottom: 24px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+.header-title { font-size: 28px; font-weight: 800; color: #1e293b; }
+.header-title span { color: #2563eb; }
+.header-sub { font-size: 14px; color: #64748b; margin-top: 4px; }
+
+/* KPI Cards */
 .kpi-card { background: #ffffff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
 .kpi-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
 .kpi-value { font-size: 32px; font-weight: 800; color: #0f172a; line-height: 1; }
 .kpi-sub { font-size: 11px; color: #94a3b8; }
+
+/* Calendar Header */
 .calendar-header-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px; text-align: center; }
 .calendar-day-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+
+/* Calendar Grid & Day Box */
 .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
-.day-box { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; min-height: 130px; padding: 10px; transition: all 0.2s ease; }
-.day-box:hover { background: #ffffff; border-color: #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+.day-box { 
+    background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; 
+    min-height: 130px; padding: 10px; transition: all 0.2s ease;
+    position: relative; cursor: default;
+}
+.day-box:hover { background: #ffffff; border-color: #cbd5e1; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+
+/* Tooltip Styling */
+.tooltip-content {
+    visibility: hidden;
+    width: 240px;
+    background-color: #1e293b;
+    color: #ffffff;
+    text-align: left;
+    border-radius: 8px;
+    padding: 14px;
+    position: absolute;
+    z-index: 999;
+    bottom: 105%;
+    left: 50%;
+    margin-left: -120px;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0.3s;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    font-size: 11px;
+    pointer-events: none;
+}
+.day-box:hover .tooltip-content {
+    visibility: visible;
+    opacity: 1;
+}
+
 .day-num { font-size: 15px; font-weight: 800; color: #cbd5e1; margin-bottom: 6px; }
 .day-num.active { color: #1e293b; }
 .dot-container { display: flex; gap: 3px; margin-bottom: 6px; flex-wrap: wrap; }
 .dot { width: 7px; height: 7px; border-radius: 50%; }
 .event-text { font-size: 10px; font-weight: 600; color: #475569; line-height: 1.3; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* Category Colors */
 .cat-kunjungan { background: #3b82f6; }
 .cat-rapat { background: #a855f7; }
 .cat-survey { background: #f97316; }
@@ -42,6 +94,7 @@ html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
 .cat-safari { background: #ec4899; }
 .cat-raya { background: #ef4444; }
 .cat-default { background: #94a3b8; }
+
 .legend-box { display: flex; gap: 12px; flex-wrap: wrap; padding: 12px; background: #ffffff; border: 1px solid #f1f5f9; border-radius: 12px; margin-bottom: 20px; }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: #64748b; }
 </style>
@@ -113,15 +166,23 @@ def load_data():
 
 df_raw, all_weeks = load_data()
 
+# ── HEADER BANNERR ───────────────────────────────────────────
+st.markdown("""
+<div class="header-banner">
+    <div class="header-title">Agenda <span>Partnership</span></div>
+    <div class="header-sub">Monitoring Kegiatan Operasional Qurban 1447 H · Zakat Sukses</div>
+</div>
+""", unsafe_allow_html=True)
+
 # ── SIDEBAR ───────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🐄 Qurban 1447 H")
+    st.markdown("### 🐄 Filter Dashboard")
     month_sel = st.selectbox("Pilih Bulan", ["Semua", "April", "Mei"])
     cs = sorted(df_raw["Kategori"].unique())
     cat_sel = st.multiselect("Filter Kategori", cs, default=cs)
     st.markdown("---")
     if not df_raw.empty:
-        st.download_button("📥 Download Data CSV", data=df_raw.to_csv(index=False), file_name="agenda_partnership_clean.csv", mime="text/csv")
+        st.download_button("📥 Download CSV", data=df_raw.to_csv(index=False), file_name="agenda_partnership.csv", mime="text/csv")
 
 # ── FILTERING ─────────────────────────────────────────────────
 df = df_raw.copy()
@@ -129,31 +190,27 @@ if month_sel != "Semua": df = df[df["Bulan"] == month_sel]
 if cat_sel: df = df[df["Kategori"].isin(cat_sel)]
 
 # ── KPI SECTION ───────────────────────────────────────────────
-st.markdown(f"### 📊 Ringkasan Agenda {month_sel if month_sel != 'Semua' else 'April - Mei'}")
 c1, c2, c3, c4, c5 = st.columns(5)
 stts = [("Total", len(df), "#2563eb", c1), ("Kunjungan", len(df[df["Kategori"]=="Kunjungan"]), "#3b82f6", c2), ("Canvasing", len(df[df["Kategori"]=="Canvasing"]), "#10b981", c3), ("Promo", len(df[df["Kategori"]=="Promo"]), "#eab308", c4), ("Rapat", len(df[df["Kategori"]=="Rapat"]), "#a855f7", c5)]
 for l, v, c, col in stts:
     with col: st.markdown(f'<div class="kpi-card"><div class="kpi-label">{l}</div><div class="kpi-value" style="color:{c}">{v}</div><div class="kpi-sub">Kegiatan</div></div>', unsafe_allow_html=True)
 
-# ── VISUALIZATIONS ────────────────────────────────────────────
+# ── CHARTS ────────────────────────────────────────────────────
 st.markdown("---")
 col_chart1, col_chart2 = st.columns([1, 1])
-
 with col_chart1:
     st.markdown("#### 📊 Distribusi per Kategori")
     df_cat = df["Kategori"].value_counts().reset_index()
     df_cat.columns = ["Kategori", "Jumlah"]
     fig_cat = px.bar(df_cat, x="Jumlah", y="Kategori", orientation="h", color="Jumlah", color_continuous_scale="Blues", text="Jumlah")
-    fig_cat.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=40), showlegend=False, xaxis_title="", yaxis_title="", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-    fig_cat.update_traces(textposition="outside")
+    fig_cat.update_layout(height=280, margin=dict(t=10, b=10, l=10, r=40), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_cat, use_container_width=True)
-
 with col_chart2:
     st.markdown("#### 📅 Beban Kerja per Hari")
     df_day = df["Hari"].value_counts().reindex(["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]).reset_index()
     df_day.columns = ["Hari", "Jumlah"]
     fig_day = px.bar(df_day, x="Hari", y="Jumlah", color="Jumlah", color_continuous_scale="Blues")
-    fig_day.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), showlegend=False, xaxis_title="", yaxis_title="", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    fig_day.update_layout(height=280, margin=dict(t=10, b=10, l=10, r=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_day, use_container_width=True)
 
 # ── CALENDAR ──────────────────────────────────────────────────
@@ -178,31 +235,20 @@ for m in (["April", "Mei"] if month_sel == "Semua" else [month_sel]):
                     dots = "".join([f'<div class="dot {get_cat_class(e["cat"])}"></div>' for e in evs])
                     txts = "".join([f'<div class="event-text">{e["text"]}</div>' for e in evs[:2]])
                     if len(evs)>2: txts += f'<div style="font-size:9px;color:#94a3b8">+{len(evs)-2} lagi</div>'
-                    grid += f'<div class="day-box"><div class="day-num active">{day["day"]}</div><div class="dot-container">{dots}</div>{txts}</div>'
+                    tt_content = f"<b>{day['day']} {day['month']} 2025</b><br><hr style='margin:8px 0; border-top:1px solid rgba(255,255,255,0.2)'>"
+                    for e in evs: tt_content += f"• {e['text']}<br>"
+                    grid += f'<div class="day-box"><div class="day-num active">{day["day"]}</div><div class="dot-container">{dots}</div>{txts}<div class="tooltip-content">{tt_content}</div></div>'
                 else: grid += '<div class="day-box" style="opacity:0.1"></div>'
     st.markdown(grid + '</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-# ── INSPECTOR & TABLE ─────────────────────────────────────────
+# ── TABLE ─────────────────────────────────────────────────────
 st.markdown("---")
-col_ins, col_tbl = st.columns([1, 1.5])
-
-with col_ins:
-    st.markdown("#### 🔍 Inspektur Agenda")
-    if not df.empty:
-        sel_date = st.selectbox("Pilih Tanggal untuk Detail:", df["FullDate"].unique())
-        details = df[df["FullDate"] == sel_date]
-        for _, row in details.iterrows():
-            st.info(f"**{row['Kategori']}**\n\n{row['Agenda']}")
-    else:
-        st.write("Tidak ada data.")
-
-with col_tbl:
-    st.markdown("#### 📋 Daftar Lengkap")
-    sq = st.text_input("Cari cepat...", placeholder="Lokasi, instansi, atau kegiatan...")
-    dfv = df[["FullDate", "Kategori", "Agenda"]].copy()
-    if sq: dfv = dfv[dfv.apply(lambda r: sq.lower() in str(r).lower(), axis=1)]
-    st.dataframe(dfv, use_container_width=True, height=250)
+st.markdown("### 📋 Daftar Lengkap Agenda")
+sq = st.text_input("Cari cepat...", placeholder="Lokasi atau kegiatan...")
+dfv = df[["FullDate", "Kategori", "Agenda"]].copy()
+if sq: dfv = dfv[dfv.apply(lambda r: sq.lower() in str(r).lower(), axis=1)]
+st.dataframe(dfv, use_container_width=True, height=300)
 
 # Footer
-st.markdown('<div style="text-align:center;margin-top:60px;padding:40px;color:#94a3b8;border-top:1px solid #f1f5f9;font-size:12px;">Partnership Qurban 1447 H · Zakat Sukses</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;margin-top:60px;padding:40px;color:#94a3b8;border-top:1px solid #f1f5f9;font-size:12px;">Agenda Partnership Qurban 1447 H · Zakat Sukses</div>', unsafe_allow_html=True)
