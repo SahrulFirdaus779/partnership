@@ -602,16 +602,14 @@ with st.expander("📝 Lihat Notes & History"):
         if len(note_df) > 0:
             html_blocks = []
             for _, row in note_df.iterrows():
-                html_blocks.append(f"""
-                <div style="background:#f8f9fa; border-radius:12px; padding:12px 16px; margin-bottom:12px; border-left: 4px solid #EA5C1F;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                        <span style="font-weight:700; color:#1a1c2e;">🏫 {row['Nama']}</span>
-                        <span style="font-size:12px; color:#64748b;">👤 {row['PJ']} · {row['Status']}</span>
-                    </div>
-                    <div style="font-size:13px; color:#334155; margin-bottom:6px;">📝 {str(row['Notes'])[:300]}</div>
-                    <div style="font-size:12px; color:#EA5C1F;">⏰ Follow Up: {row['Next_FollowUp'] if row['Next_FollowUp'] else '-'}</div>
-                </div>
-                """)
+                html_blocks.append(f"""<div style="background:#f8f9fa; border-radius:12px; padding:12px 16px; margin-bottom:12px; border-left: 4px solid #EA5C1F;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="font-weight:700; color:#1a1c2e;">🏫 {row['Nama']}</span>
+        <span style="font-size:12px; color:#64748b;">👤 {row['PJ']} · {row['Status']}</span>
+    </div>
+    <div style="font-size:13px; color:#334155; margin-bottom:6px;">📝 {str(row['Notes'])[:300]}</div>
+    <div style="font-size:12px; color:#EA5C1F;">⏰ Follow Up: {row['Next_FollowUp'] if row['Next_FollowUp'] else '-'}</div>
+</div>""")
             # Optimasi: Render semua HTML sekaligus, bukan memanggil st.markdown berulang kali di dalam loop
             st.markdown("".join(html_blocks), unsafe_allow_html=True)
         else:
