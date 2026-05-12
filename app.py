@@ -2,197 +2,635 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import os
 import re
-import html
-import textwrap
 from datetime import datetime
 
+# ─── PAGE CONFIG ────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Pusat Kendali Eksekutif · BI Strategis",
-    page_icon="🚀",
+    page_title="Pipeline Idul Adha 1447H",
+    page_icon="🐄",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── EXECUTIVE DESIGN SYSTEM ────────────────────────────────────
-st.markdown(textwrap.dedent("""
+# ─── CUSTOM CSS DENGAN HEADER TABEL BERWARNA ─────────────────────────────────
+st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
-[data-testid="stAppViewContainer"] { background-color: #fcfcfd; }
-[data-testid="stSidebar"] { background-color: #ffffff !important; border-right: 1px solid #f1f5f9; }
-.hero-banner { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 24px; padding: 32px; margin-bottom: 24px; text-align: center; }
-.hero-title { font-size: 26px; font-weight: 800; color: #1e293b; margin: 0; }
-.hero-title span { color: #2563eb; }
-.kpi-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 24px; flex: 1; text-align: center; border: 1px solid #e2e8f0; }
-.kpi-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 12px; }
-.kpi-value { font-size: 30px; font-weight: 800; color: #0f172a; line-height: 1; }
-.achieve-bar-bg { background: #f1f5f9; height: 8px; border-radius: 10px; margin-top: 12px; overflow: hidden; }
-.achieve-bar-fill { background: linear-gradient(90deg, #2563eb, #2dd4bf); height: 100%; border-radius: 10px; }
-.partner-card { background: #f1f5f9; border-radius: 16px; padding: 20px; border-left: 5px solid #2563eb; margin-top: 10px; }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  * {
+    font-family: 'Inter', sans-serif;
+  }
+
+  .stApp {
+    background: linear-gradient(135deg, #f5f7fc 0%, #ffffff 100%);
+  }
+  
+  .block-container {
+    padding: 1.5rem 2rem 2rem;
+    max-width: 1400px;
+  }
+
+  /* SIDEBAR STYLING */
+  [data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0f1119 0%, #1a1c2e 100%) !important;
+    border-right: 1px solid #2d3047 !important;
+  }
+  
+  [data-testid="stSidebar"] * {
+    color: #e2e4f0 !important;
+  }
+  
+  [data-testid="stSidebar"] .stSelectbox label,
+  [data-testid="stSidebar"] .stTextInput label,
+  [data-testid="stSidebar"] .stNumberInput label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #8b92b0 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  
+  [data-testid="stSidebar"] .stTextInput input,
+  [data-testid="stSidebar"] .stNumberInput input {
+    background: #252842 !important;
+    border: 1px solid #3d405b !important;
+    color: #ffffff !important;
+    border-radius: 10px !important;
+  }
+  
+  [data-testid="stSidebar"] .stSelectbox > div > div {
+    background: #252842 !important;
+    border: 1px solid #3d405b !important;
+    border-radius: 10px !important;
+  }
+  
+  [data-testid="stSidebar"] hr {
+    border-color: #3d405b !important;
+    margin: 20px 0;
+  }
+  
+  [data-testid="stSidebar"] .stButton > button {
+    background: #EA5C1F !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease;
+  }
+  
+  [data-testid="stSidebar"] .stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(234,92,31,0.3);
+  }
+
+  /* SECTION TITLE */
+  .sec-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1c2e;
+    margin-bottom: 16px;
+    margin-top: 8px;
+    letter-spacing: -0.3px;
+    border-left: 4px solid #EA5C1F;
+    padding-left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* KPI CARDS */
+  [data-testid="metric-container"] {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+    border: 1px solid #e8ecf2;
+    border-radius: 16px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: all 0.3s ease;
+  }
+  
+  [data-testid="metric-container"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    border-color: #EA5C1F;
+  }
+  
+  [data-testid="metric-container"] label {
+    font-size: 11px !important;
+    color: #6b7280 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  
+  [data-testid="metric-container"] [data-testid="stMetricValue"] {
+    font-size: 28px !important;
+    font-weight: 800 !important;
+    color: #1a1c2e !important;
+  }
+
+  /* ========== TABEL DENGAN HEADER BERWARNA ========== */
+  /* Container tabel */
+  .stDataFrame {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+  
+  /* Header tabel - WARNA ORANGE GRADASI */
+  div[data-testid="stDataFrame"] thead tr th {
+    background: linear-gradient(135deg, #EA5C1F 0%, #c2410c 100%) !important;
+    color: white !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    padding: 14px 16px !important;
+    border: none !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  /* Isi tabel */
+  div[data-testid="stDataFrame"] tbody tr td {
+    padding: 12px 16px !important;
+    border-bottom: 1px solid #f0f2f6 !important;
+    color: #1e293b !important;
+    font-size: 13px !important;
+    background-color: #ffffff !important;
+  }
+  
+  /* Hover effect pada baris */
+  div[data-testid="stDataFrame"] tbody tr:hover td {
+    background-color: #fff7ed !important;
+  }
+  
+  /* Zebra stripe untuk tabel */
+  div[data-testid="stDataFrame"] tbody tr:nth-child(even) td {
+    background-color: #fafafa !important;
+  }
+  
+  div[data-testid="stDataFrame"] tbody tr:nth-child(even):hover td {
+    background-color: #fff7ed !important;
+  }
+
+  /* EXPANDER */
+  .streamlit-expanderHeader {
+    background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%) !important;
+    border: 1px solid #e8ecf2 !important;
+    border-radius: 12px !important;
+    color: #1a1c2e !important;
+    font-weight: 600 !important;
+  }
+  
+  .streamlit-expanderContent {
+    background: #ffffff !important;
+    border: 1px solid #e8ecf2 !important;
+    border-top: none !important;
+    border-radius: 0 0 12px 12px !important;
+  }
+
+  /* DOWNLOAD BUTTON */
+  .stDownloadButton > button {
+    background: linear-gradient(135deg, #1a1c2e 0%, #252842 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease;
+  }
+  
+  .stDownloadButton > button:hover {
+    background: #EA5C1F !important;
+    transform: translateY(-2px);
+  }
+  
+  /* DIVIDER */
+  hr {
+    border-color: #e8ecf2 !important;
+    margin: 24px 0 !important;
+  }
+  
+  /* ALERT */
+  .stAlert {
+    border-radius: 12px !important;
+    border-left: 4px solid #EA5C1F !important;
+  }
+  
+  /* HEADING */
+  h1 {
+    font-size: 28px !important;
+    margin-bottom: 4px !important;
+    color: #1a1c2e !important;
+  }
+  
+  /* CAPTION */
+  .stCaption {
+    color: #64748b !important;
+    font-size: 12px !important;
+  }
 </style>
-"""), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# ── UTILS ────────────────────────────────────────────────────
-def clean_money(val):
-    if pd.isna(val) or val == "" or val == "-" or val == " ": return 0
-    s = str(val).replace("Rp", "").replace(".", "").replace(",", "").strip()
-    try: return float(re.sub(r'[^0-9]', '', s))
-    except: return 0
+# ─── STATUS & TYPE CONFIG ──────────────────────────────────────────────────
+STATUS_CONFIG = {
+    "Leads": {"color": "#64748b", "bg": "#f1f5f9", "icon": "🎯"},
+    "Contacted": {"color": "#3b82f6", "bg": "#eff6ff", "icon": "📞"},
+    "Proposal Sent": {"color": "#ea580c", "bg": "#fff7ed", "icon": "📄"},
+    "Closed Won": {"color": "#059669", "bg": "#ecfdf5", "icon": "✅"},
+    "Closed Lost": {"color": "#dc2626", "bg": "#fef2f2", "icon": "❌"},
+}
 
-def get_probability(status):
-    s = str(status).upper()
-    if "WON" in s: return 1.0
-    if any(k in s for k in ["NEGOTIATION", "PROPOSAL", "FOLLOW UP"]): return 0.6
-    if "CONTACTED" in s: return 0.2
-    return 0.05
+TYPE_COLORS = {
+    "Sekolah": "#EA5C1F",
+    "Masjid": "#3b82f6", 
+    "Yayasan": "#8b5cf6",
+    "Majelis": "#ec489a",
+    "Perusahaan": "#1a1c2e",
+    "Komunitas": "#06b6d4",
+}
 
-def make_wa_link(num):
-    if pd.isna(num) or str(num).strip() == "": return ""
-    clean = re.sub(r'[^0-9]', '', str(num))
-    if clean.startswith('0'): clean = '62' + clean[1:]
-    return f"https://wa.me/{clean}"
+# ─── FUNGSI UTILITY ─────────────────────────────────────────────────────────
+def clean_phone(phone):
+    if not phone or str(phone).lower() == "nan" or str(phone).strip() == "-":
+        return ""
+    digits = re.sub(r"\D", "", str(phone))
+    if digits.startswith("0"):
+        digits = "62" + digits[1:]
+    elif digits.startswith("8"):
+        digits = "62" + digits
+    return digits
 
-# ── LOADERS ──────────────────────────────────────────────────
-@st.cache_data
-def load_pipeline(path):
-    if not os.path.exists(path): return pd.DataFrame()
-    try:
-        temp_df = pd.read_csv(path, nrows=10, header=None)
-        h_idx = 0
-        for i, r in temp_df.iterrows():
-            if "Calon Mitra" in str(r.values): h_idx = i; break
-        df = pd.read_csv(path, skiprows=h_idx)
-        df = df.dropna(subset=["Calon Mitra"])
-        df.columns = [c.strip() for c in df.columns]
-        t_col = [c for c in df.columns if "Target" in c][0]
-        r_col = [c for c in df.columns if "Realisasi" in c][0]
-        df["Target_KPI"] = df[t_col].apply(clean_money)
-        df["Real_KPI"] = df[r_col].apply(clean_money)
-        df["Kecamatan"] = df["Kecamatan"].fillna("LAINNYA").str.upper().str.strip()
-        df["Status"] = df["Status"].fillna("LEADS").str.upper().str.strip()
-        df["Type"] = df["Type"].fillna("LAINNYA").str.upper().str.strip()
-        df["Expected_Revenue"] = df["Target_KPI"] * df["Status"].apply(get_probability)
-        if "PIC Contac" in df.columns: df["WhatsApp"] = df["PIC Contac"].apply(make_wa_link)
-        pj_v = [c for c in df.columns if "PJ" in c or "Handling" in c]
-        if pj_v: df = df.rename(columns={pj_v[0]: "PIC"})
-        else: df["PIC"] = "Unassigned"
-        return df
-    except: return pd.DataFrame()
+# ─── LOAD DATA ─────────────────────────────────────────────────────────────
+SHEET_ID = "1AetsUA__rVYEXn-t6-OZoopBNu1TWtrz"
+SHEET_GID = "1298999788"
+CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={SHEET_GID}"
 
-# ── DATA CONSOLIDATION ───────────────────────────────────────
-f_paths = ["00. Pipeline Idul Adha 1447H.xlsx - Master.csv", "00. Pipeline Idul Adha 1447H.xlsx - Idul Adha.csv", "00. Pipeline Idul Adha 1447H.xlsx - Copy of Umum.csv"]
-f_names = ["Master", "Idul Adha", "Umum"]
-all_dfs = []
-for i, fp in enumerate(f_paths):
-    d = load_pipeline(fp)
-    if not d.empty: d["Sumber"] = f_names[i]; all_dfs.append(d)
-all_df = pd.concat(all_dfs, ignore_index=True) if all_dfs else pd.DataFrame()
-
-# ── SIDEBAR ──────────────────────────────────────────────────
-st.sidebar.markdown("### 🏆 Kendali Strategis")
-if not all_df.empty:
-    sb_k = st.sidebar.multiselect("Pilih Wilayah", sorted(all_df["Kecamatan"].unique()), default=sorted(all_df["Kecamatan"].unique()), key="filter_kec")
-    sb_s = st.sidebar.multiselect("Filter Status", sorted(all_df["Status"].unique()), default=sorted(all_df["Status"].unique()), key="filter_st")
-    st.sidebar.markdown("---")
-    p_high = st.sidebar.checkbox("💎 Mitra Nilai Tinggi (> 10 Jt)", key="chk_high")
-    p_low = st.sidebar.checkbox("⚠️ Butuh Follow Up", key="chk_low")
-    sb_q = st.sidebar.text_input("🔍 Cari Nama Mitra", "", key="txt_search").upper()
-else: sb_k, sb_s, sb_q, p_high, p_low = [], [], "", False, False
-
-st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Segarkan Data", key="btn_refresh"): st.rerun()
-
-# ── RENDERING ENGINE ─────────────────────────────────────────
-def render_bi_view(df, title, unique_id):
-    st.markdown(f'<div class="hero-banner"><div class="hero-title">Wawasan Strategis: <span>{title}</span></div></div>', unsafe_allow_html=True)
-    if df.empty: return st.warning(f"Data {title} tidak ditemukan.")
+@st.cache_data(ttl=300, show_spinner="Memuat data dari Google Sheets...")
+def load_data():
+    df = pd.read_csv(CSV_URL, header=None)
     
-    df_f = df[(df["Kecamatan"].isin(sb_k)) & (df["Status"].isin(sb_s))]
-    if sb_q: df_f = df_f[df_f["Calon Mitra"].str.upper().str.contains(sb_q, na=False)]
-    if p_high: df_f = df_f[df_f["Target_KPI"] > 10000000]
-    if p_low: df_f = df_f[df_f["Notes & History"].isna() | (df_f["Notes & History"] == "")]
+    # Cari header row
+    header_row = None
+    for i, row in df.iterrows():
+        vals = [str(v).strip() for v in row.values]
+        if any("Calon Mitra" in v for v in vals):
+            header_row = i
+            break
+        if "No" in vals and "Status" in vals:
+            header_row = i
+            break
     
-    df_f = df_f.sort_values("Target_KPI", ascending=False)
-    t, r, e = df_f["Target_KPI"].sum(), df_f["Real_KPI"].sum(), df_f["Expected_Revenue"].sum()
+    if header_row is None:
+        header_row = 1
     
-    c1, c2, c3 = st.columns(3)
-    with c1: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Volume Pipeline</div><div class="kpi-value">{len(df_f)}</div></div>', unsafe_allow_html=True)
-    with c2: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Estimasi BI</div><div class="kpi-value" style="color:#2563eb">Rp {e:,.0f}</div></div>', unsafe_allow_html=True)
-    with c3: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Realisasi Aktual</div><div class="kpi-value" style="color:#10b981">Rp {r:,.0f}</div><div class="kpi-sub">{(r/t*100 if t>0 else 0):.1f}% Capaian</div></div>', unsafe_allow_html=True)
+    df.columns = df.iloc[header_row]
+    df = df.iloc[header_row + 1:].reset_index(drop=True)
+    df.columns = [str(c).strip() for c in df.columns]
+    df = df.dropna(how="all")
+    
+    # Mapping kolom
+    rename_dict = {}
+    for col in df.columns:
+        col_lower = col.lower()
+        if "calon mitra" in col_lower or col_lower == "nama":
+            rename_dict[col] = "Nama"
+        elif col_lower == "no":
+            rename_dict[col] = "No"
+        elif "alamat" in col_lower:
+            rename_dict[col] = "Alamat"
+        elif "kelurahan" in col_lower:
+            rename_dict[col] = "Kelurahan"
+        elif "kecamatan" in col_lower:
+            rename_dict[col] = "Kecamatan"
+        elif "type" in col_lower or "tipe" in col_lower:
+            rename_dict[col] = "Type"
+        elif "pic" in col_lower and ("contact" in col_lower or "contac" in col_lower):
+            rename_dict[col] = "PIC_Contact"
+        elif "pic" in col_lower and "name" in col_lower:
+            rename_dict[col] = "PIC_Name"
+        elif "status" in col_lower:
+            rename_dict[col] = "Status"
+        elif "next" in col_lower and "follow" in col_lower:
+            rename_dict[col] = "Next_FollowUp"
+        elif "last" in col_lower and "act" in col_lower:
+            rename_dict[col] = "Last_Activity"
+        elif "notes" in col_lower or "history" in col_lower:
+            rename_dict[col] = "Notes"
+        elif "target" in col_lower:
+            rename_dict[col] = "Target"
+        elif "realisasi" in col_lower:
+            rename_dict[col] = "Realisasi"
+        elif "pj" in col_lower or "handling" in col_lower:
+            rename_dict[col] = "PJ"
+    
+    df = df.rename(columns=rename_dict)
+    
+    # Tambahkan kolom yang hilang
+    required_cols = ["Nama", "Type", "Kecamatan", "PIC_Name", "PIC_Contact", "Status", "PJ", "Next_FollowUp", "Last_Activity", "Notes"]
+    for col in required_cols:
+        if col not in df.columns:
+            df[col] = ""
+    
+    # Bersihkan data
+    df = df[df["Nama"].notna() & (df["Nama"].astype(str).str.strip() != "") & (df["Nama"].astype(str).str.strip() != "nan")]
+    df["Status"] = df["Status"].fillna("Leads").astype(str).str.strip()
+    
+    def normalize_status(val):
+        v = str(val).lower()
+        if "won" in v:
+            return "Closed Won"
+        if "lost" in v:
+            return "Closed Lost"
+        if "proposal" in v:
+            return "Proposal Sent"
+        if "contact" in v:
+            return "Contacted"
+        if "leads" in v:
+            return "Leads"
+        return val
+    
+    df["Status"] = df["Status"].apply(normalize_status)
+    df["Type"] = df["Type"].fillna("-").astype(str).str.strip()
+    df["Kecamatan"] = df["Kecamatan"].fillna("-").astype(str).str.strip()
+    df["PJ"] = df["PJ"].fillna("").astype(str).str.strip()
+    df["PIC_Name"] = df["PIC_Name"].fillna("-").astype(str).str.strip()
+    
+    # WhatsApp
+    df["PIC_Contact_Raw"] = df["PIC_Contact"].fillna("-").astype(str).str.strip()
+    df["WA_Number"] = df["PIC_Contact_Raw"].apply(clean_phone)
+    df["WA_Link"] = df["WA_Number"].apply(lambda x: f"https://wa.me/{x}" if x else "")
+    
+    # Filter valid status
+    valid_statuses = {"Leads", "Contacted", "Proposal Sent", "Closed Won", "Closed Lost"}
+    df = df[df["Status"].isin(valid_statuses)]
+    
+    # Hapus baris legend
+    df = df[~df["Nama"].str.lower().str.startswith(("biru", "hijau", "ungu", "kuning", "merah", "keterangan", "legend"), na=False)]
+    
+    return df.reset_index(drop=True)
+
+# ─── LOAD DATA ───────────────────────────────────────────────────────────────
+
+try:
+    df = load_data()
+    # st.success(f"✅ Berhasil memuat {len(df)} data mitra")
+except Exception as e:
+    st.error(f"❌ Gagal memuat data: {e}")
+    st.stop()
+
+# ─── SIDEBAR ─────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("## 🐄 Pipeline Idul Adha")
+    st.markdown("---")
+    
+    search = st.text_input("🔍 Cari Mitra", placeholder="Nama / Kecamatan / PIC")
+    
+    statuses = ["Semua"] + sorted(df["Status"].unique().tolist())
+    sel_status = st.selectbox("📌 Status", statuses)
+    
+    types = ["Semua"] + sorted(df["Type"].unique().tolist())
+    sel_type = st.selectbox("🏛️ Tipe Mitra", types)
+    
+    pjs_raw = df["PJ"].replace("", "Belum ditugaskan").unique().tolist()
+    pjs = ["Semua"] + sorted([p for p in pjs_raw if p])
+    sel_pj = st.selectbox("👤 PJ Handling", pjs)
     
     st.markdown("---")
-    col_l, col_r = st.columns([1.5, 1])
-    with col_l:
-        st.markdown("#### 📊 Visualisasi Performa")
-        sub1, sub2 = st.columns(2)
-        with sub1:
-            cts = df_f["Status"].value_counts().reset_index()
-            if not cts.empty:
-                fig_f = go.Figure(go.Funnel(y=cts["Status"], x=cts["count"], textinfo="value+percent initial"))
-                fig_f.update_layout(height=300, margin=dict(t=30,b=0), title=f"Corong Konversi - {title}")
-                st.plotly_chart(fig_f, use_container_width=True)
-            else: st.info("Tidak ada data status.")
-        with sub2:
-            dt = df_f[df_f["Target_KPI"] > 0]
-            if not dt.empty:
-                fig_t = px.treemap(dt, path=["Type", "Status"], values="Target_KPI", color="Target_KPI", color_continuous_scale="Blues")
-                fig_t.update_layout(height=300, margin=dict(t=30,b=0), title=f"Segmentasi Nilai - {title}")
-                st.plotly_chart(fig_t, use_container_width=True)
-            else: st.info("Tidak ada nilai target.")
-            
-    with col_r:
-        st.markdown("#### 💎 Kecerdasan Mitra")
-        sel_p = st.selectbox("Pilih Mitra untuk Detail", ["-- Pilih Mitra --"] + sorted(df_f["Calon Mitra"].tolist()), key=f"sel_{unique_id}")
-        if sel_p != "-- Pilih Mitra --":
-            pd_x = df_f[df_f["Calon Mitra"] == sel_p].iloc[0]
-            st.markdown(f'<div class="partner-card"><div class="partner-name">{pd_x["Calon Mitra"]}</div><div class="partner-detail"><b>Status:</b> {pd_x["Status"]}</div><div class="partner-detail"><b>PIC:</b> {pd_x["PIC"]}</div><hr><div class="partner-detail"><b>Catatan:</b><br>{pd_x["Notes & History"] if pd.notna(pd_x["Notes & History"]) else "-"}</div></div>', unsafe_allow_html=True)
-            if pd.notna(pd_x.get("WhatsApp")) and pd_x["WhatsApp"] != "": 
-                st.link_button(f"💬 Hubungi via WA", pd_x["WhatsApp"]) # REMOVED INVALID 'key'
-        else: st.info("Pilih salah satu mitra di atas.")
+    st.markdown("### 🎯 Target")
+    target_qurban = st.number_input("Target Qurban (ekor)", min_value=0, value=50, step=5)
+    
+    st.markdown("---")
+    st.caption(f"📊 Total Data: **{len(df)}** Mitra")
+    
+    if st.button("🔄 Refresh Data", use_container_width=True):
+        load_data.clear()  # Hanya hapus cache fungsi load_data, bukan seluruh cache global
+        st.rerun()
 
-    st.markdown("#### 📋 Data Rincian (Urut Berdasarkan Nilai)")
-    color_fn = lambda v: "background-color: #dcfce7; color: #166534; font-weight: bold;" if "WON" in str(v).upper() else ""
-    styler = df_f.style
-    if hasattr(styler, 'map'): styler = styler.map(color_fn, subset=["Status"])
-    else: styler = styler.applymap(color_fn, subset=["Status"])
-    st.dataframe(styler, use_container_width=True, height=450, column_config={"WhatsApp": st.column_config.LinkColumn("Chat WA", display_text="Buka WA 💬"), "Target_KPI": st.column_config.NumberColumn("Target (Rp)", format="Rp %.0f"), "Real_KPI": st.column_config.NumberColumn("Real (Rp)", format="Rp %.0f")})
+# ─── FILTER ──────────────────────────────────────────────────────────────────
+filtered = df.copy()
+if search:
+    q = search.lower()
+    # Optimasi: Menggunakan vektorisasi Pandas (jauh lebih cepat dibanding .apply row-by-row)
+    search_cols = ["Nama", "Kecamatan", "PIC_Name", "PJ"]
+    combined_text = filtered[search_cols].astype(str).agg(' '.join, axis=1).str.lower()
+    filtered = filtered[combined_text.str.contains(q, na=False, regex=False)]
+if sel_status != "Semua":
+    filtered = filtered[filtered["Status"] == sel_status]
+if sel_type != "Semua":
+    filtered = filtered[filtered["Type"] == sel_type]
+if sel_pj != "Semua":
+    actual_pj = "" if sel_pj == "Belum ditugaskan" else sel_pj
+    filtered = filtered[filtered["PJ"] == actual_pj]
 
-# ── MAIN APP ─────────────────────────────────────────────────
-tabs = st.tabs(["🚀 Ringkasan Eksekutif", "🏛️ Database Utama", "🐄 Pipeline Idul Adha", "🤝 Pipeline Umum"])
+# ─── HEADER ──────────────────────────────────────────────────────────────────
+st.markdown('<h1>🐄 Pipeline Partnership Idul Adha 1447H</h1>', unsafe_allow_html=True)
+st.caption("📡 Data realtime dari Google Sheets · Zakat Sukses")
+st.markdown("---")
 
-with tabs[0]:
-    st.markdown('<div class="hero-banner"><div class="hero-title">Executive <span>Command Center</span> Zakat Sukses</div></div>', unsafe_allow_html=True)
-    if not all_df.empty:
-        df_f = all_df[(all_df["Kecamatan"].isin(sb_k)) & (all_df["Status"].isin(sb_s))]
-        if sb_q: df_f = df_f[df_f["Calon Mitra"].str.upper().str.contains(sb_q, na=False)]
-        if p_high: df_f = df_f[df_f["Target_KPI"] > 10000000]
-        if p_low: df_f = df_f[df_f["Notes & History"].isna() | (df_f["Notes & History"] == "")]
+# ─── KPI CARDS ──────────────────────────────────────────────────────────────
+sc = filtered["Status"].value_counts()
+real_qurban = sc.get("Closed Won", 0)
+conversion_rate = (real_qurban / len(filtered) * 100) if len(filtered) > 0 else 0
+
+col1, col2, col3, col4, col5, col6 = st.columns(6)
+
+with col1:
+    st.metric("🎯 Total Mitra", f"{len(filtered):,}")
+with col2:
+    delta_value = real_qurban - target_qurban
+    st.metric("✅ Closed Won", f"{real_qurban:,}", delta=f"{delta_value:+d}")
+with col3:
+    st.metric("📄 Proposal Sent", f"{sc.get('Proposal Sent', 0):,}")
+with col4:
+    st.metric("📞 Contacted", f"{sc.get('Contacted', 0):,}")
+with col5:
+    st.metric("🎯 Leads", f"{sc.get('Leads', 0):,}")
+with col6:
+    st.metric("📈 Conversion Rate", f"{conversion_rate:.1f}%")
+
+if sc.get("Closed Lost", 0) > 0:
+    st.warning(f"⚠️ **Closed Lost:** {sc.get('Closed Lost', 0)} mitra tidak berhasil")
+
+st.markdown("")
+
+# ─── VISUALIZATIONS ROW ─────────────────────────────────────────────────────
+col_a, col_b, col_c = st.columns([1, 1, 1])
+
+with col_a:
+    st.markdown('<div class="sec-title">🎯 Pipeline Funnel</div>', unsafe_allow_html=True)
+    order = ["Leads", "Contacted", "Proposal Sent", "Closed Won"]
+    funnel_df = filtered["Status"].value_counts().reindex(order, fill_value=0).reset_index()
+    funnel_df.columns = ["Status", "Jumlah"]
+    
+    fig1 = go.Figure(go.Funnel(
+        y=funnel_df["Status"],
+        x=funnel_df["Jumlah"],
+        textinfo="value+percent initial",
+        textfont=dict(size=13, color="white", family="Inter"),
+        marker=dict(color=["#94a3b8", "#3b82f6", "#ea580c", "#059669"]),
+        connector=dict(line=dict(color="#cbd5e1", width=2))
+    ))
+    fig1.update_layout(
+        height=300,
+        margin=dict(l=10, r=10, t=20, b=10),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter", size=12),
+    )
+    st.plotly_chart(fig1, use_container_width=True, config={"displayModeBar": False})
+
+with col_b:
+    st.markdown('<div class="sec-title">🏛️ Distribusi Tipe Mitra</div>', unsafe_allow_html=True)
+    type_df = filtered["Type"].value_counts().reset_index()
+    type_df.columns = ["Type", "Jumlah"]
+    type_df = type_df[type_df["Type"] != "-"]
+    
+    colors2 = [TYPE_COLORS.get(t, "#94a3b8") for t in type_df["Type"]]
+    
+    fig2 = go.Figure(go.Bar(
+        y=type_df["Type"],
+        x=type_df["Jumlah"],
+        orientation="h",
+        marker=dict(color=colors2, cornerradius=8),
+        text=type_df["Jumlah"],
+        textposition="outside",
+        textfont=dict(size=12, color="#1a1c2e")
+    ))
+    fig2.update_layout(
+        height=300,
+        margin=dict(l=0, r=40, t=20, b=10),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(showgrid=True, gridcolor="#e2e8f0", zeroline=False),
+        yaxis=dict(showgrid=False, autorange="reversed"),
+        showlegend=False,
+    )
+    st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
+
+with col_c:
+    st.markdown('<div class="sec-title">📍 Top 5 Kecamatan</div>', unsafe_allow_html=True)
+    top_kec = filtered[filtered["Kecamatan"] != "-"]["Kecamatan"].value_counts().head(5)
+    
+    fig3 = go.Figure(go.Pie(
+        labels=top_kec.index,
+        values=top_kec.values,
+        hole=0.55,
+        marker=dict(colors=px.colors.sequential.Oranges_r, line=dict(color="#ffffff", width=3)),
+        textinfo="percent",
+        textfont=dict(size=11, color="#1a1c2e")
+    ))
+    fig3.update_layout(
+        height=300,
+        margin=dict(l=10, r=10, t=20, b=10),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        legend=dict(font=dict(size=10), orientation="v", x=1.02, y=0.5)
+    )
+    st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False})
+
+st.markdown("---")
+
+# ─── PJ HANDLING TABLE ──────────────────────────────────────────────────────
+st.markdown('<div class="sec-title">👤 Performa PJ Handling</div>', unsafe_allow_html=True)
+
+pj_df = filtered.copy()
+pj_df["PJ_clean"] = pj_df["PJ"].replace("", "Belum ditugaskan")
+pj_summary = pj_df.groupby("PJ_clean").agg(
+    Total=("Nama", "count"),
+    Won=("Status", lambda x: (x == "Closed Won").sum()),
+    Proposal=("Status", lambda x: (x == "Proposal Sent").sum()),
+    Contacted=("Status", lambda x: (x == "Contacted").sum()),
+    Lost=("Status", lambda x: (x == "Closed Lost").sum()),
+).reset_index().rename(columns={"PJ_clean": "PJ"}).sort_values("Total", ascending=False)
+
+pj_summary["Conversion"] = ((pj_summary["Won"] / pj_summary["Total"] * 100).round(1)).fillna(0).astype(str) + "%"
+
+st.dataframe(
+    pj_summary,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "PJ": st.column_config.TextColumn("PJ Handling", width="medium"),
+        "Total": st.column_config.NumberColumn("Total Mitra", format="%d"),
+        "Won": st.column_config.NumberColumn("✅ Won", format="%d"),
+        "Proposal": st.column_config.NumberColumn("📄 Proposal", format="%d"),
+        "Contacted": st.column_config.NumberColumn("📞 Contacted", format="%d"),
+        "Lost": st.column_config.NumberColumn("❌ Lost", format="%d"),
+        "Conversion": st.column_config.TextColumn("📈 Conv. Rate", width="small"),
+    },
+)
+
+st.markdown("---")
+
+# ─── MAIN DATA TABLE - DENGAN HEADER WARNA ORANGE ───────────────────────────
+st.markdown(
+    f'<div class="sec-title">📋 Data Mitra Pipeline '
+    f'<span style="background:#EA5C1F;color:#fff;border-radius:20px;padding:2px 12px;font-size:12px;font-weight:600;">'
+    f'{len(filtered)} dari {len(df)} hasil</span></div>',
+    unsafe_allow_html=True
+)
+
+# Siapkan data untuk ditampilkan
+display_df = filtered[[
+    "Nama", "Type", "Kecamatan", "PIC_Name", "Status", "PJ", "Next_FollowUp"
+]].copy()
+display_df = display_df.reset_index(drop=True)
+display_df.index = display_df.index + 1  # Nomor urut mulai dari 1
+
+# Tampilkan dataframe dengan konfigurasi kolom
+st.dataframe(
+    display_df,
+    use_container_width=True,
+    height=550,
+    column_config={
+        "Nama": st.column_config.TextColumn("📌 Calon Mitra", width="large"),
+        "Type": st.column_config.TextColumn("🏛️ Tipe", width="small"),
+        "Kecamatan": st.column_config.TextColumn("📍 Kecamatan", width="medium"),
+        "PIC_Name": st.column_config.TextColumn("👤 PIC Name", width="medium"),
+        "Status": st.column_config.TextColumn("📊 Status", width="medium"),
+        "PJ": st.column_config.TextColumn("👔 PJ Handling", width="small"),
+        "Next_FollowUp": st.column_config.TextColumn("⏰ Next Follow Up", width="large"),
+    },
+)
+
+# ─── NOTES EXPANDER ─────────────────────────────────────────────────────────
+with st.expander("📝 Lihat Notes & History"):
+    if "Notes" in filtered.columns:
+        note_df = filtered[["Nama", "Status", "PJ", "Next_FollowUp", "Notes"]].copy()
+        note_df = note_df[note_df["Notes"].astype(str).str.strip().notna()]
         
-        t, r, e = df_f["Target_KPI"].sum(), df_f["Real_KPI"].sum(), df_f["Expected_Revenue"].sum()
-        c1, c2, c3, c4 = st.columns(4)
-        with c1: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Nilai Pipeline</div><div class="kpi-value">Rp {t:,.0f}</div></div>', unsafe_allow_html=True)
-        with c2: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Prediksi Realisasi</div><div class="kpi-value" style="color:#2563eb">Rp {e:,.0f}</div></div>', unsafe_allow_html=True)
-        with c3: st.markdown(f'<div class="kpi-card"><div class="kpi-label">Realisasi Aktual</div><div class="kpi-value" style="color:#10b981">Rp {r:,.0f}</div></div>', unsafe_allow_html=True)
-        with c4:
-            h = (df_f["Notes & History"].dropna().count() / len(df_f) * 100) if len(df_f) > 0 else 0
-            st.markdown(f'<div class="kpi-card"><div class="kpi-label">Kesehatan Data</div><div class="kpi-value" style="color:{"#f43f5e" if h < 50 else "#10b981"}">{h:.0f}%</div></div>', unsafe_allow_html=True)
-        
-        st.markdown("---")
-        col_l, col_r = st.columns(2)
-        with col_l:
-            st.markdown("#### 🗺️ Kekuatan Wilayah")
-            reg_d = df_f.groupby("Kecamatan")["Real_KPI"].sum().sort_values(ascending=False).head(10).reset_index()
-            st.plotly_chart(px.bar(reg_d, x="Real_KPI", y="Kecamatan", orientation="h", color="Real_KPI", color_continuous_scale="Blues", title="Analisis Wilayah Global").update_layout(yaxis={'categoryorder':'total ascending'}), use_container_width=True)
-        with col_r:
-            st.markdown("#### 💎 Mitra Strategis")
-            top_p = df_f.sort_values("Target_KPI", ascending=False).head(8)
-            st.plotly_chart(px.bar(top_p, x="Target_KPI", y="Calon Mitra", color="Status", orientation="h", title="Mitra Nilai Tertinggi Global").update_layout(yaxis={'categoryorder':'total ascending'}), use_container_width=True)
+        if len(note_df) > 0:
+            html_blocks = []
+            for _, row in note_df.iterrows():
+                html_blocks.append(f"""
+                <div style="background:#f8f9fa; border-radius:12px; padding:12px 16px; margin-bottom:12px; border-left: 4px solid #EA5C1F;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span style="font-weight:700; color:#1a1c2e;">🏫 {row['Nama']}</span>
+                        <span style="font-size:12px; color:#64748b;">👤 {row['PJ']} · {row['Status']}</span>
+                    </div>
+                    <div style="font-size:13px; color:#334155; margin-bottom:6px;">📝 {str(row['Notes'])[:300]}</div>
+                    <div style="font-size:12px; color:#EA5C1F;">⏰ Follow Up: {row['Next_FollowUp'] if row['Next_FollowUp'] else '-'}</div>
+                </div>
+                """)
+            # Optimasi: Render semua HTML sekaligus, bukan memanggil st.markdown berulang kali di dalam loop
+            st.markdown("".join(html_blocks), unsafe_allow_html=True)
+        else:
+            st.info("ℹ️ Tidak ada notes yang tersedia")
 
-for i, t_obj in enumerate(tabs[1:]):
-    with t_obj:
-        d_raw = load_pipeline(f_paths[i])
-        render_bi_view(d_raw, f_names[i], f"tab_{i}")
+# ─── DOWNLOAD BUTTON & FOOTER ───────────────────────────────────────────────
+st.markdown("---")
+col_dl1, col_dl2 = st.columns([1, 3])
 
-st.markdown('<div style="text-align:center;margin-top:60px;padding:40px;color:#94a3b8;border-top:1px solid #f1f5f9;font-size:12px;">Pusat Kendali BI Eksekutif · Zakat Sukses</div>', unsafe_allow_html=True)
+with col_dl1:
+    # Data untuk export
+    export_df = filtered[["Nama", "Type", "Kecamatan", "PIC_Name", "Status", "PJ", "Next_FollowUp", "Notes"]].copy()
+    csv_out = export_df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="📄 Download CSV",
+        data=csv_out,
+        file_name=f"pipeline_idul_adha_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+
+st.caption("🐄 Pipeline Idul Adha 1447H · Zakat Sukses · Data realtime dari Google Sheets · Refresh otomatis setiap 5 menit")
