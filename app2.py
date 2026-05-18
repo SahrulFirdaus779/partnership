@@ -196,6 +196,44 @@ def _sentiment_label(text: str) -> str:
     return "neutral"
 
 
+_WEAK_ANSWER_PATTERNS = [
+    r"\bmohon maaf\b",
+    r"\bmaaf\b",
+    r"\bkurang jelas\b",
+    r"\bbisa dijelaskan\b",
+    r"\bboleh dijelaskan\b",
+    r"\bbelum (?:ada|memiliki) informasi\b",
+    r"\bbelum ada data\b",
+    r"\bbelum menemukan informasi\b",
+    r"\barahkan ke admin\b",
+    r"\bhubungi admin\b",
+    r"\bcustomer service\b",
+    r"\bfallback\b",
+]
+
+
+def _is_weak_answer(text: str) -> bool:
+    t = str(text).lower()
+    return any(re.search(p, t) for p in _WEAK_ANSWER_PATTERNS)
+
+
+def _normalize_for_dedup(text: str) -> str:
+    t = _clean_text_for_nlp(text)
+    # remove very short tokens and stopwords to stabilize template matching
+    tokens = [w for w in t.split() if len(w) > 2 and w not in _ID_STOPWORDS]
+    return " ".join(tokens)
+
+
+def _top_tokens(text_series: pd.Series, top_n: int = 12) -> pd.DataFrame:
+    texts = " ".join(_clean_text_for_nlp(t) for t in text_series.astype(str).tolist())
+    tokens = [t for t in texts.split() if t and t not in _ID_STOPWORDS and len(t) > 2]
+    counts = Counter(tokens)
+    if not counts:
+        return pd.DataFrame(columns=["token", "count"])
+    items = counts.most_common(top_n)
+    return pd.DataFrame(items, columns=["token", "count"])
+
+
 def _make_pdf_report(df_filtered: pd.DataFrame) -> bytes:
     if reportlab_canvas is None or A4_PAGE is None:
         raise RuntimeError("PDF export membutuhkan package 'reportlab'.")
@@ -387,6 +425,8 @@ def load_data():
     # Tambahkan kolom analitik
     df['Topic'] = df['text'].apply(classify_topic)
     df['Need_CS'] = df['text'].apply(need_cs_followup)
+    df['Weak_Answer'] = df['text'].apply(_is_weak_answer)
+    df['Dedup_Key'] = df['text'].apply(_normalize_for_dedup)
     df['Date'] = df['Date_time'].dt.date
     df['Hour'] = df['Date_time'].dt.hour
     
@@ -478,6 +518,143 @@ with col4:
 with col5:
     top_topic = df_filtered['Topic'].mode().iloc[0] if not df_filtered.empty else "-"
     st.metric("Topik Dominan", top_topic)
+
+# ==================== BOT MAINTENANCE ====================
+st.markdown("### 🛠️ Bot Maintenance")
+if df_filtered.empty:
+    st.info("Tidak ada data untuk ditampilkan (cek filter).")
+else:
+    m1, m2, m3, m4 = st.columns(4)
+    total_msgs = len(df_filtered)
+    weak_cnt = int(df_filtered.get('Weak_Answer', pd.Series([False]*total_msgs)).sum())
+    weak_rate = (weak_cnt / total_msgs * 100) if total_msgs else 0
+    needcs_cnt = int(df_filtered.get('Need_CS', pd.Series([False]*total_msgs)).sum())
+    unique_contacts = int(df_filtered['phone'].nunique()) if 'phone' in df_filtered.columns else 0
+
+    with m1:
+        st.metric("Weak Answer", f"{weak_cnt}")
+    with m2:
+        st.metric("Weak Answer Rate", f"{weak_rate:.1f}%")
+    with m3:
+        st.metric("Need CS", f"{needcs_cnt}")
+    with m4:
+        st.metric("Kontak Unik", f"{unique_contacts}")
+
+    tab_health, tab_weak, tab_repeat = st.tabs(["📊 Health", "⚠️ Weak Answers", "🔁 Repeated Replies"])
+
+    with tab_health:
+        c1, c2 = st.columns(2)
+        with c1:
+            daily_weak = (
+                df_filtered.groupby('Date')['Weak_Answer'].mean().reset_index(name='weak_rate')
+                if 'Date' in df_filtered.columns and 'Weak_Answer' in df_filtered.columns else pd.DataFrame()
+            )
+            if daily_weak.empty:
+                st.info("Belum ada tren weak answer.")
+            else:
+                daily_weak['weak_rate'] = daily_weak['weak_rate'] * 100
+                fig_weak_trend = px.line(
+                    daily_weak,
+                    x='Date',
+                    y='weak_rate',
+                    markers=True,
+                    labels={'Date': 'Tanggal', 'weak_rate': 'Weak Answer Rate (%)'}
+                )
+                fig_weak_trend.update_layout(height=320, margin=dict(l=10, r=10, t=10, b=10))
+                st.plotly_chart(fig_weak_trend, use_container_width=True)
+
+        with c2:
+            weak_by_topic = (
+                df_filtered.groupby('Topic')['Weak_Answer'].mean().sort_values(ascending=False).reset_index()
+                if 'Topic' in df_filtered.columns and 'Weak_Answer' in df_filtered.columns else pd.DataFrame()
+            )
+            if weak_by_topic.empty:
+                st.info("Belum ada breakdown by topic.")
+            else:
+                weak_by_topic['Weak Answer Rate (%)'] = (weak_by_topic['Weak_Answer'] * 100).round(1)
+                fig_weak_topic = px.bar(
+                    weak_by_topic.head(10),
+                    x='Weak Answer Rate (%)',
+                    y='Topic',
+                    orientation='h',
+                    color='Weak Answer Rate (%)',
+                    color_continuous_scale='Reds',
+                    labels={'Topic': 'Topik'}
+                )
+                fig_weak_topic.update_layout(height=320, margin=dict(l=10, r=10, t=10, b=10), showlegend=False, yaxis={'categoryorder': 'total ascending'})
+                st.plotly_chart(fig_weak_topic, use_container_width=True)
+
+        if weak_rate >= 20:
+            st.warning("Insight: Weak Answer Rate cukup tinggi. Fokus update knowledge/prompt pada topik dengan rate tertinggi.")
+        elif weak_rate >= 10:
+            st.info("Insight: Ada beberapa weak answers. Cek tab Weak Answers untuk contoh pesan terbaru.")
+        else:
+            st.success("Insight: Weak Answer Rate relatif rendah untuk filter saat ini.")
+
+    with tab_weak:
+        weak_df = df_filtered[df_filtered.get('Weak_Answer', False) == True].copy() if 'Weak_Answer' in df_filtered.columns else df_filtered.iloc[0:0].copy()
+        if weak_df.empty:
+            st.info("Tidak ada weak answers pada filter ini.")
+        else:
+            weak_df_view = weak_df[[c for c in ['Date_time','name','phone','status','Topic','text'] if c in weak_df.columns]].copy()
+            if 'Date_time' in weak_df_view.columns:
+                weak_df_view['Date_time'] = pd.to_datetime(weak_df_view['Date_time'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
+            weak_df_view = weak_df_view.rename(columns={
+                'Date_time': 'Tanggal/Jam',
+                'name': 'Nama',
+                'phone': 'Nomor WA',
+                'status': 'Status',
+                'Topic': 'Topik',
+                'text': 'Pesan'
+            })
+            st.dataframe(weak_df_view.head(200), use_container_width=True, height=340)
+
+            csv_weak = weak_df_view.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download Weak Answers (CSV)",
+                data=csv_weak,
+                file_name="weak_answers.csv",
+                mime="text/csv"
+            )
+
+            top_tokens_df = _top_tokens(weak_df['text'])
+            if not top_tokens_df.empty:
+                st.caption("Insight (kata paling sering di weak answers): " + ", ".join(top_tokens_df['token'].head(8).tolist()))
+
+    with tab_repeat:
+        if 'Dedup_Key' not in df_filtered.columns:
+            st.info("Kolom dedup belum tersedia.")
+        else:
+            dedup = df_filtered.copy()
+            dedup = dedup[dedup['Dedup_Key'].astype(str).str.len() > 0]
+            if dedup.empty:
+                st.info("Tidak ada pesan yang bisa dianalisis untuk repetisi.")
+            else:
+                rep = dedup.groupby('Dedup_Key').size().sort_values(ascending=False).reset_index(name='count')
+                rep = rep[rep['count'] >= 3].head(15)
+                if rep.empty:
+                    st.info("Tidak ada jawaban yang berulang >= 3x pada filter ini.")
+                else:
+                    # attach a sample original text
+                    sample_map = (
+                        dedup.dropna(subset=['Dedup_Key'])
+                        .groupby('Dedup_Key')['text']
+                        .first()
+                        .to_dict()
+                    )
+                    rep['sample_text'] = rep['Dedup_Key'].map(sample_map).astype(str).str.replace('\n',' ', regex=False).str.slice(0, 160)
+                    rep_view = rep.rename(columns={'count': 'Jumlah', 'sample_text': 'Contoh Jawaban (ringkas)'})[['Jumlah','Contoh Jawaban (ringkas)']]
+                    st.dataframe(rep_view, use_container_width=True, height=340)
+
+                    csv_rep = rep_view.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Download Repeated Replies (CSV)",
+                        data=csv_rep,
+                        file_name="repeated_replies.csv",
+                        mime="text/csv"
+                    )
+
+                    st.caption("Insight: Jika jawaban template terlalu sering muncul, pertimbangkan variasi respons atau tambah konteks/FAQ agar lebih spesifik.")
 
 # ==================== VISUALISASI ====================
 col1, col2 = st.columns(2)
@@ -606,6 +783,11 @@ with tab_wc:
                     collocations=False,
                 ).generate(wc_text)
                 st.image(wc.to_array(), use_container_width=True)
+
+                tok_df = _top_tokens(df_filtered['text'])
+                if not tok_df.empty:
+                    top_words = ", ".join(tok_df['token'].head(8).tolist())
+                    st.info(f"Insight: kata dominan pada filter ini: {top_words}. Gunakan ini untuk cek coverage knowledge bot.")
         except Exception as e:
             st.warning(f"Gagal membuat word cloud: {e}")
 
@@ -624,6 +806,10 @@ with tab_sent:
                 .astype(int)
             )
 
+            total_s = int(sent_counts.sum())
+            neg_pct = (sent_counts.get('negative', 0) / total_s * 100) if total_s else 0
+            pos_pct = (sent_counts.get('positive', 0) / total_s * 100) if total_s else 0
+
             fig_sent = px.pie(
                 values=sent_counts.values,
                 names=[s.title() for s in sent_counts.index.tolist()],
@@ -632,6 +818,13 @@ with tab_sent:
             fig_sent.update_traces(textposition='inside', textinfo='percent+label')
             fig_sent.update_layout(height=320, margin=dict(l=10, r=10, t=10, b=10))
             st.plotly_chart(fig_sent, use_container_width=True)
+
+            if neg_pct >= 15:
+                st.warning("Insight: Persentase negative cukup tinggi. Cek pesan negative untuk pola error/ketidakpuasan.")
+            elif pos_pct >= 20:
+                st.success("Insight: Banyak respons bernada positif untuk filter ini.")
+            else:
+                st.info("Insight: Sentiment dominan netral (wajar untuk percakapan informatif).")
 
         with col_trend:
             sent_daily = (
